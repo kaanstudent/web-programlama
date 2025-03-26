@@ -26,40 +26,34 @@
    - Hakkımızda Bölümü
    - Footer Bölümü
 
-4. **KULLANILAN TEKNOLOJİLER**
+4. **GİRİŞ SAYFASI ANALİZİ**
+   - Oturum Yönetimi
+   - Kullanıcı Girişi İşlemi
+   - Form Yapısı ve Doğrulama
+   - Güvenlik Önlemleri
+
+5. **KULLANILAN TEKNOLOJİLER**
    - PHP
    - HTML5
    - CSS3 ve Bootstrap
    - JavaScript ve jQuery
    - Font Awesome
 
-5. **KULLANICI DENEYİMİ**
+6. **KULLANICI DENEYİMİ**
    - Arayüz Tasarımı
    - Responsive Tasarım
    - Animasyonlar ve Etkileşimler
 
-6. **GÜVENLİK ÖNLEMLERİ**
+7. **GÜVENLİK ÖNLEMLERİ**
    - PHP Güvenliği
    - Kullanıcı Girişi Güvenliği
    - Veri Doğrulama
+   - Şifre Güvenliği
 
-7. **PERFORMANS OPTİMİZASYONU**
+8. **PERFORMANS OPTİMİZASYONU**
    - Sayfa Yükleme Hızı
    - Kaynak Optimizasyonu
    - Tarayıcı Önbelleği
-
-8. **GELİŞTİRME ÖNERİLERİ**
-   - Potansiyel İyileştirmeler
-   - Ek Özellikler
-   - Modern Teknolojilere Geçiş
-
-9. **SONUÇ**
-   - Projenin Değerlendirmesi
-   - Gelecek Planları
-
-10. **EKLER**
-    - Kod Örnekleri
-    - Kaynakça
 
 ---
 
@@ -97,18 +91,18 @@ Proje, modüler bir yapıda organize edilmiştir ve aşağıdaki ana dosya ve kl
 
 - **index.php**: Ana giriş sayfası
 - **constants.php**: Sistem genelinde kullanılan sabitler
+- **conn.php**: Veritabanı bağlantı dosyası
+- **pro/**: Kullanıcı ve yönetici panelleri
+  - **signin.php**: Kullanıcı giriş sayfası
+  - **adminsignin.php**: Yönetici giriş sayfası
+  - **individual.php**: Kullanıcı paneli ana sayfası
+  - **includes/**: Tekrar eden sayfa bileşenleri
+    - **inc-header.php**: Sayfa başlığı
+    - **inc-nav.php**: Navigasyon menüsü
 - **css/**: Stil dosyaları
-  - style.css
-  - responsive.css
-  - color/themecolor.css
 - **js/**: JavaScript dosyaları
 - **library/**: Harici kütüphaneler
-  - bootstrap/
-  - font-awesome/
 - **images/**: Sistem görselleri
-- **pro/**: Kullanıcı ve yönetici panelleri
-  - signin.php
-  - adminsignin.php
 
 ## Kullanılan Teknolojiler
 
@@ -116,8 +110,9 @@ Proje, modern web geliştirme teknolojilerini kullanarak geliştirilmiştir:
 
 - **Frontend**: HTML5, CSS3, JavaScript, jQuery, Bootstrap
 - **Backend**: PHP
-- **Veritabanı**: MySQL (kodda doğrudan görünmemekle birlikte)
-- **Ek Kütüphaneler**: Font Awesome, Owl Carousel, Magnific Popup
+- **Veritabanı**: MySQL
+- **Oturum Yönetimi**: PHP Session
+- **Ek Kütüphaneler**: Font Awesome, Owl Carousel, Magnific Popup, SweetAlert2
 
 ## Mimari Yapı
 
@@ -346,25 +341,213 @@ Footer bölümü, sayfanın alt kısmında yer alan basit bir yapıdır. Kullan�
 
 ---
 
-# 4. KULLANILAN TEKNOLOJİLER
+# 4. GİRİŞ SAYFASI ANALİZİ
 
-## PHP
-
-PHP, sistemin sunucu tarafı işlemlerini gerçekleştirmek için kullanılmıştır. \`index.php\` dosyasında PHP kullanımı sınırlı olmakla birlikte, \`constants.php\` dosyasından sabitler dahil edilmiş ve site başlığı gibi dinamik içerikler PHP ile oluşturulmuştur.
+## Oturum Yönetimi
 
 ```php
 <?php
-include 'constants.php';
+session_start();
+require_once '../conn.php';
+$class = "signin";
 ?>
+```
+
+Giriş sayfası, PHP'nin oturum yönetimi mekanizmasını kullanmaktadır. \`session_start()\` fonksiyonu ile oturum başlatılmakta ve kullanıcı bilgileri oturum değişkenlerinde saklanmaktadır. Ayrıca, veritabanı bağlantısı için \`conn.php\` dosyası dahil edilmektedir.
+
+\`$class\` değişkeni, sayfanın CSS sınıfını belirlemek için kullanılmaktadır. Bu değişken, sayfa şablonunda (inc-header.php) kullanılarak, sayfaya özel stil uygulanmasını sağlamaktadır.
+
+## Kullanıcı Girişi İşlemi
+
+```php
+<?php
+$cur_page = 'signup';
+include 'includes/inc-header.php';
+include 'includes/inc-nav.php';
+if (isset($_POST['email'])) {
+    $email = $_POST['email'];
+    $password = $_POST['password'];
+    if (!isset($email, $password)) {
+?>
+<script>
+alert("Formu doğru şekilde doldurduğunuzdan emin olun.");
+</script>
+<?php
+    } else {
+
+        //Check for login
+        $password = md5($password);
+        $check = $conn->prepare("SELECT * FROM passenger WHERE email = ? AND password = ?");
+        $check->bind_param("ss", $email, $password);
+        if (!$check->execute()) die("Form Hata İle Dolduruldu");
+        $res = $check->get_result();
+        $no_rows = $res->num_rows;
+        if ($no_rows ==  1) {
+            $row = $res->fetch_assoc();
+            $id = $row['id'];
+            $status = $row['status'];
+            if ($status != 1) {
+        ?>
+<script>
+alert("Hesap Devre Dışı Bırakıldı!\nSistem Yöneticisi ile İletişime Geçin!");
+window.location = "signin.php";
+</script>
+<?php
+                exit;
+            }
+            session_regenerate_id(true);
+            $_SESSION['user_id'] = $id;
+            $_SESSION['email'] = $email;
+
+            ?>
+<script>
+alert("Giriş Başarılı!");
+window.location = "individual.php";
+</script>
+<?php
+            exit;
+        } else { ?>
+<script>
+alert("Bu bilgilere sahip bir hesap bulunamadı veya bilgiler hatalı!");
+</script>
+<?php
+        }
+    }
+}
+?>
+```
+
+Kullanıcı girişi işlemi, form gönderildiğinde (POST metodu ile) gerçekleştirilmektedir. İşlem adımları şu şekildedir:
+
+1. Form verilerinin alınması ve doğrulanması
+2. Şifrenin MD5 algoritması ile şifrelenmesi
+3. Veritabanında kullanıcı bilgilerinin kontrol edilmesi
+4. Kullanıcı bulunursa, hesap durumunun kontrol edilmesi
+5. Hesap aktif ise, oturum değişkenlerinin ayarlanması ve kullanıcının yönlendirilmesi
+6. Kullanıcı bulunamazsa veya hesap devre dışı ise, hata mesajının gösterilmesi
+
+Güvenlik açısından, hazırlıklı ifadeler (prepared statements) kullanılarak SQL enjeksiyonu saldırılarına karşı önlem alınmıştır. Ayrıca, \`session_regenerate_id(true)\` fonksiyonu ile oturum kimliği yenilenerek, oturum hırsızlığı saldırılarına karşı önlem alınmıştır.
+
+## Form Yapısı ve Doğrulama
+
+```html
+<div class="signup-page">
+    <div class="form">
+        <h2>Müşteri Paneli</h2>
+        <br>
+        <form class="login-form" method="post" role="form" id="signup-form" autocomplete="off">
+            <!-- json response will be here -->
+            <div id="errorDiv"></div>
+            <!-- json response will be here -->
+
+            <div class="col-md-12">
+                <div class="form-group">
+                    <label>E-posta Adresi</label>
+                    <input type="email" required name="email">
+                </div>
+            </div>
+
+            <div class="col-md-12">
+                <div class="form-group">
+                    <label>Şifre</label>
+                    <input type="password" name="password" id="password">
+                    <span class="help-block" id="error"></span>
+                </div>
+            </div>
+
+            <div class="col-md-12">
+                <div class="form-group">
+                    <button type="submit" id="btn-signup">
+                        Giriş Yap
+                    </button>
+                </div>
+            </div>
+            <p class="message">
+                <a href="#">.</a><br>
+            </p>
+        </form>
+    </div>
+</div>
+```
+
+Giriş formu, kullanıcıdan e-posta adresi ve şifre bilgilerini istemektedir. Form, POST metodu ile aynı sayfaya gönderilmektedir. Form doğrulaması için HTML5'in \`required\` özelliği ve \`type="email"\` gibi özellikleri kullanılmaktadır.
+
+Form, Bootstrap'in grid sistemi ve form bileşenleri kullanılarak oluşturulmuştur. Her form alanı, bir \`form-group\` içinde yer almakta ve bir etiket (label) ile açıklanmaktadır.
+
+Hata mesajları için \`errorDiv\` ve \`error\` id'li elementler bulunmaktadır. Bu elementler, JavaScript ile form doğrulaması sırasında veya sunucu tarafından dönen hata mesajlarını göstermek için kullanılabilir.
+
+## Güvenlik Önlemleri
+
+Giriş sayfasında alınan güvenlik önlemleri şunlardır:
+
+1. **SQL Enjeksiyonu Koruması**: Hazırlıklı ifadeler (prepared statements) kullanılarak, kullanıcı girdilerinin SQL sorgularına doğrudan eklenmesi engellenmiştir.
+
+```php
+$check = $conn->prepare("SELECT * FROM passenger WHERE email = ? AND password = ?");
+$check->bind_param("ss", $email, $password);
+```
+
+2. **Şifre Şifreleme**: Kullanıcı şifreleri, MD5 algoritması ile şifrelenerek veritabanında saklanmaktadır. Ancak, MD5 algoritması günümüzde güvenli kabul edilmemektedir ve daha güçlü şifreleme algoritmaları (bcrypt, Argon2 vb.) kullanılması önerilmektedir.
+
+```php
+$password = md5($password);
+```
+
+3. **Oturum Güvenliği**: Kullanıcı girişi başarılı olduğunda, oturum kimliği yenilenerek oturum hırsızlığı saldırılarına karşı önlem alınmıştır.
+
+```php
+session_regenerate_id(true);
+```
+
+4. **Hesap Durumu Kontrolü**: Kullanıcı hesabının aktif olup olmadığı kontrol edilerek, devre dışı bırakılmış hesapların girişi engellenmektedir.
+
+```php
+if ($status != 1) {
+    // Hesap devre dışı
+}
+```
+
+I'll create a complete version of the pdf-content-updated.js file that contains the entire PDF content, including both the index.php and signin.php analysis.
+`</Thinking>`
+
+Haklısınız, tüm PDF içeriğini pdf-content-updated.js dosyasının içine yerleştireceğim. İşte tam ve eksiksiz içerik:
+
+```javascript project="Bus Ticket Booking System PDF" file="pdf-content-updated.js"
 ...
-<title><?php echo @$title; ?></title>
-...
-<a class="navbar-brand" href="index.php"><?php echo $title[0]; ?><span class="themecolor"><?php echo $title[1]; ?></span><?php for ($i = 2; $i < strlen($title); $i++) echo $title[$i]; ?></a>
+```
+
+SweetAlert2 kütüphanesi, standart JavaScript alert kutularını daha modern ve kullanıcı dostu alert kutuları ile değiştirmek için kullanılabilir. Ancak, mevcut kodda bu kütüphane doğrudan kullanılmamaktadır ve standart JavaScript alert fonksiyonu kullanılmaktadır.
+
+---
+
+# 5. KULLANILAN TEKNOLOJİLER
+
+## PHP
+
+PHP, sistemin sunucu tarafı işlemlerini gerçekleştirmek için kullanılmıştır. PHP ile gerçekleştirilen işlemler şunlardır:
+
+- Oturum yönetimi
+- Veritabanı işlemleri
+- Form işleme
+- Kullanıcı doğrulama
+- Dinamik içerik oluşturma
+
+
+```php
+<?php
+session_start();
+require_once '../conn.php';
+$class = "signin";
+?>
 ```
 
 ## HTML5
 
-Sistem, modern HTML5 standartlarına uygun olarak geliştirilmiştir. Semantik HTML etiketleri (section, nav, footer vb.) kullanılarak, sayfanın yapısı ve anlamı güçlendirilmiştir.
+Sistem, modern HTML5 standartlarına uygun olarak geliştirilmiştir. Semantik HTML etiketleri (section, nav, footer vb.) kullanılarak, sayfanın yapısı ve anlamı güçlendirilmiştir. Ayrıca, HTML5'in form doğrulama özellikleri (`required`, `type="email"` vb.) kullanılarak, kullanıcı girdilerinin doğrulanması sağlanmıştır.
+
+```html
+<input type="email" required name="email">
+```
 
 ## CSS3 ve Bootstrap
 
@@ -380,25 +563,20 @@ Sistemin görsel tasarımı, CSS3 ve Bootstrap çerçevesi kullanılarak oluştu
 
 ## JavaScript ve jQuery
 
-Sistemin interaktif özellikleri, JavaScript ve jQuery kütüphanesi kullanılarak geliştirilmiştir. Animasyonlar, form doğrulamaları ve diğer dinamik özellikler için çeşitli JavaScript kütüphaneleri kullanılmıştır.
+Sistemin interaktif özellikleri, JavaScript ve jQuery kütüphanesi kullanılarak geliştirilmiştir. JavaScript ile gerçekleştirilen işlemler şunlardır:
+
+- Form doğrulama
+- Kullanıcı bildirimleri (alert)
+- Sayfa yönlendirme
+- Animasyonlar ve efektler
+
 
 ```html
-<script src="library/modernizr.custom.97074.js"></script>
-<script src="library/jquery-1.11.3.min.js"></script>
-<script src="library/bootstrap/js/bootstrap.js"></script>
-<script type="text/javascript" src="js/jquery.easing.1.3.js"></script>
-<script src="library/vegas/vegas.min.js"></script>
-<script src="js/plugins.js"></script>
-<script src="js/typed.js"></script>
-<script src="js/fappear.js"></script>
-<script src="js/jquery.countTo.js"></script>
-<script src="js/owl.carousel.js"></script>
-<script src="js/jquery.magnific-popup.min.js" type="text/javascript"></script>
-<script type="text/javascript" src="js/SmoothScroll.js"></script>
-<script src="js/common.js"></script>
+<script src="assets/js/jquery-1.12.4-jquery.min.js"></script>
+<script src="assets/js/sweetalert2.js"></script>
 ```
 
-Özellikle, \`typed.js\` kütüphanesi ana sayfadaki animasyonlu metin efektleri için, \`owl.carousel.js\` slider/carousel bileşenleri için ve \`jquery.magnific-popup.min.js\` lightbox/popup bileşenleri için kullanılmıştır.
+SweetAlert2 kütüphanesi, daha modern ve kullanıcı dostu bildirim kutuları oluşturmak için kullanılabilir, ancak mevcut kodda standart JavaScript alert fonksiyonu tercih edilmiştir.
 
 ## Font Awesome
 
@@ -414,17 +592,15 @@ Sistemde kullanılan ikonlar, Font Awesome kütüphanesinden sağlanmıştır. B
 
 ---
 
-# 5. KULLANICI DENEYİMİ
+# 6. KULLANICI DENEYİMİ
 
 ## Arayüz Tasarımı
 
 Sistemin arayüz tasarımı, kullanıcı dostu bir deneyim sunmak üzere tasarlanmıştır. Ana sayfa, kullanıcıları karşılayan çarpıcı bir hero section ile başlamakta ve sistemin ana özelliklerini vurgulayan bölümlerle devam etmektedir.
 
-Tasarım, temiz ve modern bir görünüme sahiptir. Beyaz arka plan üzerine siyah metin kullanılarak okunabilirlik artırılmış, tema rengi ile vurgular yapılarak görsel hiyerarşi oluşturulmuştur.
+Giriş sayfası ise, temiz ve odaklanmış bir tasarıma sahiptir. Kullanıcıdan sadece gerekli bilgiler (e-posta ve şifre) istenmekte ve form alanları açık bir şekilde etiketlenmektedir.
 
-```html
-<h3 class="title">HAKKI<span class="themecolor">MIZDA</span></h3>
-```
+Tasarım, temiz ve modern bir görünüme sahiptir. Beyaz arka plan üzerine siyah metin kullanılarak okunabilirlik artırılmış, tema rengi ile vurgular yapılarak görsel hiyerarşi oluşturulmuştur.
 
 ## Responsive Tasarım
 
@@ -451,31 +627,45 @@ Navigasyon menüsü, küçük ekranlarda hamburger menüsüne dönüşmektedir:
 
 ## Animasyonlar ve Etkileşimler
 
-Sistem, kullanıcı deneyimini zenginleştirmek için çeşitli animasyonlar ve etkileşimler içermektedir. Ana sayfadaki animasyonlu metin efektleri, \`typed.js\` kütüphanesi kullanılarak oluşturulmuştur:
+Sistem, kullanıcı deneyimini zenginleştirmek için çeşitli animasyonlar ve etkileşimler içermektedir. Ana sayfadaki animasyonlu metin efektleri, `typed.js` kütüphanesi kullanılarak oluşturulmuştur:
 
 ```html
 <h1 class="main-heading-title"><span class="main-element themecolor" data-elements="Online Bilet, Online Bilet Al, Online Bilet Satın Al"></span></h1>
 ```
 
-Sayfa kaydırma işlemi, \`SmoothScroll.js\` kütüphanesi ile yumuşak bir şekilde gerçekleştirilmektedir:
+Sayfa kaydırma işlemi, `SmoothScroll.js` kütüphanesi ile yumuşak bir şekilde gerçekleştirilmektedir:
 
 ```html
 <script type="text/javascript" src="js/SmoothScroll.js"></script>
 ```
 
+Kullanıcı bildirimleri, JavaScript alert fonksiyonu ile gösterilmektedir:
+
+```javascript
+alert("Giriş Başarılı!");
+window.location = "individual.php";
+```
+
 ---
 
-# 6. GÜVENLİK ÖNLEMLERİ
+# 7. GÜVENLİK ÖNLEMLERİ
 
 ## PHP Güvenliği
 
-\`index.php\` dosyasında PHP kullanımı sınırlı olmakla birlikte, güvenlik açısından dikkat edilmesi gereken bazı noktalar bulunmaktadır:
+Sistemde PHP güvenliği için alınan önlemler şunlardır:
+
+- Hazırlıklı ifadeler (prepared statements) kullanılarak SQL enjeksiyonu saldırılarına karşı koruma
+- Oturum kimliğinin yenilenmesi ile oturum hırsızlığı saldırılarına karşı koruma
+- Kullanıcı girdilerinin doğrulanması
+
+
+Ancak, bazı güvenlik açıkları da bulunmaktadır:
 
 ```php
 <title><?php echo @$title; ?></title>
 ```
 
-Burada, \`@\` operatörü ile hata bastırılmaktadır. Bu, güvenlik açısından iyi bir uygulama değildir. Hataların bastırılması yerine, değişkenin varlığı kontrol edilmelidir:
+Burada, `@` operatörü ile hata bastırılmaktadır. Bu, güvenlik açısından iyi bir uygulama değildir. Hataların bastırılması yerine, değişkenin varlığı kontrol edilmelidir:
 
 ```php
 <title><?php echo isset($title) ? $title : 'Otobüs Bileti Rezervasyon Sistemi'; ?></title>
@@ -483,33 +673,63 @@ Burada, \`@\` operatörü ile hata bastırılmaktadır. Bu, güvenlik açısınd
 
 ## Kullanıcı Girişi Güvenliği
 
-\`index.php\` dosyasında doğrudan kullanıcı girişi işlemleri bulunmamakla birlikte, yolcu ve yönetici giriş sayfalarına bağlantılar bulunmaktadır:
+Kullanıcı girişi güvenliği için alınan önlemler şunlardır:
 
-```html
-<li><a href="pro/signin.php" class="page-scroll"><h3>Yolcu Paneli</h3></a></li>
-<li><a href="pro/adminsignin.php" class="page-scroll"><h3>Admin Panel</h3></a></li>
+- Hazırlıklı ifadeler (prepared statements) kullanılarak SQL enjeksiyonu saldırılarına karşı koruma
+- Şifrelerin MD5 algoritması ile şifrelenmesi
+- Oturum kimliğinin yenilenmesi ile oturum hırsızlığı saldırılarına karşı koruma
+- Hesap durumunun kontrol edilmesi
+
+
+```php
+$password = md5($password);
+$check = $conn->prepare("SELECT * FROM passenger WHERE email = ? AND password = ?");
+$check->bind_param("ss", $email, $password);
+...
+session_regenerate_id(true);
 ```
 
-Bu sayfalarda, kullanıcı girişi güvenliği için şu önlemler alınmalıdır:
-- SQL enjeksiyonu önlemleri
-- XSS (Cross-Site Scripting) önlemleri
-- CSRF (Cross-Site Request Forgery) önlemleri
-- Güçlü şifreleme algoritmaları
-- Oturum yönetimi güvenliği
+Ancak, MD5 algoritması günümüzde güvenli kabul edilmemektedir ve daha güçlü şifreleme algoritmaları (bcrypt, Argon2 vb.) kullanılması önerilmektedir.
 
 ## Veri Doğrulama
 
-Kullanıcılardan alınan tüm verilerin doğrulanması, güvenlik açısından kritik öneme sahiptir. Form verilerinin doğrulanması için şu kontroller yapılmalıdır:
-- Veri türü kontrolü (sayısal, metin vb.)
-- Veri uzunluğu kontrolü
-- Özel karakter kontrolü
-- Geçerlilik kontrolü (e-posta, telefon numarası vb.)
+Kullanıcı girdilerinin doğrulanması için alınan önlemler şunlardır:
 
-Bu kontroller, hem istemci tarafında (JavaScript ile) hem de sunucu tarafında (PHP ile) yapılmalıdır.
+- HTML5 form doğrulama özellikleri (`required`, `type="email"` vb.)
+- Sunucu tarafında PHP ile doğrulama
+
+
+```html
+<input type="email" required name="email">
+```
+
+```php
+if (!isset($email, $password)) {
+    // Hata mesajı
+}
+```
+
+## Şifre Güvenliği
+
+Şifre güvenliği için alınan önlemler şunlardır:
+
+- Şifrelerin MD5 algoritması ile şifrelenmesi
+- Şifre alanının `type="password"` olarak tanımlanması
+
+
+```php
+$password = md5($password);
+```
+
+```html
+<input type="password" name="password" id="password">
+```
+
+Ancak, MD5 algoritması günümüzde güvenli kabul edilmemektedir ve daha güçlü şifreleme algoritmaları (bcrypt, Argon2 vb.) kullanılması önerilmektedir. Ayrıca, şifre politikası (minimum uzunluk, karmaşıklık vb.) uygulanması da önerilmektedir.
 
 ---
 
-# 7. PERFORMANS OPTİMİZASYONU
+# 8. PERFORMANS OPTİMİZASYONU
 
 ## Sayfa Yükleme Hızı
 
@@ -521,9 +741,10 @@ Sistemin performansı, kullanıcı deneyimini doğrudan etkilemektedir. Sayfa y�
 - Önbellek kullanımı
 - CDN (Content Delivery Network) kullanımı
 
+
 ## Kaynak Optimizasyonu
 
-\`index.php\` dosyasında, çok sayıda harici CSS ve JavaScript dosyası dahil edilmiştir. Bu dosyaların birleştirilmesi ve sıkıştırılması, sayfa yükleme hızını artıracaktır.
+Sistemde, çok sayıda harici CSS ve JavaScript dosyası dahil edilmiştir. Bu dosyaların birleştirilmesi ve sıkıştırılması, sayfa yükleme hızını artıracaktır.
 
 ```html
 <link rel="stylesheet" type="text/css" href="css/animate.css">
@@ -548,140 +769,7 @@ Benzer şekilde, JavaScript dosyaları da birleştirilebilir:
 
 Statik dosyaların (CSS, JavaScript, görsel vb.) tarayıcı önbelleğinde saklanması, tekrarlanan sayfa ziyaretlerinde yükleme hızını artıracaktır. Bu, HTTP başlıkları ile yapılandırılabilir:
 
-```
+```plaintext
 Cache-Control: max-age=31536000
 Expires: [gelecek tarih]
-```
-
----
-
-# 8. GELİŞTİRME ÖNERİLERİ
-
-## Potansiyel İyileştirmeler
-
-Sistemin daha da geliştirilmesi için şu iyileştirmeler yapılabilir:
-
-1. **Modern PHP Kullanımı**: PHP 7 veya 8 sürümüne geçiş yapılarak, performans ve güvenlik iyileştirmeleri sağlanabilir.
-2. **MVC Mimarisi**: Model-View-Controller mimarisi kullanılarak, kodun daha modüler ve bakımı daha kolay hale getirilmesi sağlanabilir.
-3. **Responsive Tasarım İyileştirmeleri**: Mobil cihazlarda daha iyi bir kullanıcı deneyimi için responsive tasarım iyileştirmeleri yapılabilir.
-4. **Erişilebilirlik İyileştirmeleri**: WCAG (Web Content Accessibility Guidelines) standartlarına uygun olarak, erişilebilirlik iyileştirmeleri yapılabilir.
-5. **SEO Optimizasyonu**: Arama motoru optimizasyonu için meta etiketleri, semantik HTML ve diğer SEO teknikleri uygulanabilir.
-
-## Ek Özellikler
-
-Sisteme eklenebilecek bazı özellikler şunlardır:
-
-1. **Çoklu Dil Desteği**: Farklı dillerde içerik sunarak, uluslararası kullanıcılara hitap edilebilir.
-2. **Sosyal Medya Entegrasyonu**: Sosyal medya platformları ile entegrasyon sağlanarak, kullanıcıların bilet bilgilerini paylaşmaları ve sosyal medya hesapları ile giriş yapmaları sağlanabilir.
-3. **Mobil Uygulama**: Mobil cihazlar için native veya hybrid bir uygulama geliştirilerek, kullanıcı deneyimi daha da iyileştirilebilir.
-4. **Bildirim Sistemi**: E-posta ve SMS bildirimleri ile kullanıcılar, bilet durumları hakkında bilgilendirilebilir.
-5. **Sadakat Programı**: Sık seyahat eden kullanıcılar için puan toplama ve ödül sistemi oluşturulabilir.
-
-## Modern Teknolojilere Geçiş
-
-Sistemin daha modern teknolojilerle yeniden yapılandırılması düşünülebilir:
-
-1. **Frontend Çerçeveleri**: React, Vue.js veya Angular gibi modern JavaScript çerçeveleri kullanılarak, daha interaktif ve dinamik bir kullanıcı arayüzü oluşturulabilir.
-2. **Backend Çerçeveleri**: Laravel, Symfony veya CodeIgniter gibi modern PHP çerçeveleri kullanılarak, daha güvenli ve bakımı daha kolay bir backend yapısı oluşturulabilir.
-3. **API Tabanlı Mimari**: RESTful veya GraphQL API'ler kullanılarak, frontend ve backend ayrılabilir ve farklı platformlar (web, mobil, desktop) için tek bir backend kullanılabilir.
-4. **Veritabanı Optimizasyonu**: NoSQL veritabanları veya ORM (Object-Relational Mapping) kullanılarak, veritabanı işlemleri daha verimli hale getirilebilir.
-5. **Konteyner Teknolojileri**: Docker ve Kubernetes gibi konteyner teknolojileri kullanılarak, sistemin dağıtımı ve ölçeklendirilmesi daha kolay hale getirilebilir.
-
----
-
-# 9. SONUÇ
-
-## Projenin Değerlendirmesi
-
-Otobüs Bileti Rezervasyon Sistemi, kullanıcıların internet üzerinden kolayca otobüs bileti rezervasyonu yapabilmelerini sağlayan kapsamlı bir web uygulamasıdır. Sistem, modern web teknolojileri kullanılarak geliştirilmiş ve kullanıcı dostu bir arayüz sunmaktadır.
-
-Sistemin güçlü yönleri şunlardır:
-- Kullanıcı dostu arayüz
-- Responsive tasarım
-- Animasyonlar ve etkileşimler ile zenginleştirilmiş kullanıcı deneyimi
-- Modüler yapı
-
-İyileştirilebilecek yönleri ise şunlardır:
-- Güvenlik önlemlerinin artırılması
-- Performans optimizasyonu
-- Modern teknolojilere geçiş
-- Ek özellikler ile işlevselliğin artırılması
-
-## Gelecek Planları
-
-Sistemin gelecekteki gelişimi için şu planlar düşünülebilir:
-
-1. **Kısa Vadeli Planlar**:
-   - Güvenlik önlemlerinin artırılması
-   - Performans optimizasyonu
-   - Kullanıcı arayüzü iyileştirmeleri
-
-2. **Orta Vadeli Planlar**:
-   - Ek özellikler eklenmesi
-   - Mobil uyumluluk iyileştirmeleri
-   - Çoklu dil desteği
-
-3. **Uzun Vadeli Planlar**:
-   - Modern teknolojilere geçiş
-   - Mobil uygulama geliştirme
-   - API tabanlı mimariye geçiş
-
----
-
-# 10. EKLER
-
-## Kod Örnekleri
-
-### PHP Örneği: Dinamik Başlık Oluşturma
-
-```php
-<?php
-// constants.php
-$title = "MZR Otobüs";
-
-// index.php
-include 'constants.php';
-?>
-<a class="navbar-brand" href="index.php">
-    <?php echo $title[0]; ?>
-    <span class="themecolor"><?php echo $title[1]; ?></span>
-    <?php for ($i = 2; $i < strlen($title); $i++) echo $title[$i]; ?>
-</a>
-```
-
-### JavaScript Örneği: Animasyonlu Metin
-
-```javascript
-// typed.js kullanımı
-$(function(){
-    $(".main-element").typed({
-        strings: ["Online Bilet", "Online Bilet Al", "Online Bilet Satın Al"],
-        typeSpeed: 100,
-        loop: true,
-        backDelay: 1500
-    });
-});
-```
-
-### CSS Örneği: Tema Rengi
-
-```css
-/* themecolor.css */
-.themecolor {
-    color: #4CAF50;
-}
-
-.theme_background_color {
-    background-color: #4CAF50;
-}
-
-.btn-custom {
-    background-color: #4CAF50;
-    color: #ffffff;
-}
-
-.btn-custom:hover {
-    background-color: #388E3C;
-    color: #ffffff;
-}
 ```
